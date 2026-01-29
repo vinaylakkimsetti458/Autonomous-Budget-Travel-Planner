@@ -7,4 +7,5 @@ pandas
 numpy
 python-dotenv
 typing-extensions
-streamlit
+streamlit>=1.32.0
+altair<5
