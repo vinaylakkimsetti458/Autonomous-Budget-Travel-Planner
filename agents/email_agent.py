@@ -4,40 +4,98 @@ from typing import Dict, Any, Callable, Optional
 from email.mime.text import MIMEText
 from models.planner_state import PlannerState
 
+# SMTP configuration for sending emails via Gmail
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
+
 def generate_financial_df(final_state: PlannerState) -> pd.DataFrame:
-    total_spent = (final_state.get('flight_cost', 0.0) + final_state.get('accommodation_cost', 0.0) + final_state.get('food_cost', 0.0) + final_state.get('activities_cost', 0.0))
+    # Compute total spend across all major categories
+    total_spent = (
+        final_state.get('flight_cost', 0.0)
+        + final_state.get('accommodation_cost', 0.0)
+        + final_state.get('food_cost', 0.0)
+        + final_state.get('activities_cost', 0.0)
+    )
+
+    # Fetch activities plan to build a concise preview
     activities_plan = final_state.get("activities_plan", [])
+
     if activities_plan:
+        # Limit preview to keep email readable
         max_items_to_show = 4
         preview_items = activities_plan[:max_items_to_show]
         activities_details = " | ".join(preview_items)
+
+        # Indicate if more activities exist beyond the preview
         if len(activities_plan) > max_items_to_show:
             activities_details += f" ... (+{len(activities_plan) - max_items_to_show} more)"
     else:
+        # Fallback description if no activity details are available
         activities_details = "Amadeus activities & local experiences"
+
+    # Build structured data for financial summary
     data = {
-        'Category': ['Total Budget (Initial)', 'Flight', 'Accommodation', 'Food & Dining', 'Activities & Local Travel', 'Total Spent', 'Remaining Budget'],
-        'Details': ['Original Goal', final_state.get('flight_details', ''), final_state.get('accommodation_details', ''), f"{final_state.get('duration_days', 0)} Days of meals", activities_details, '', ''],
-        'Cost (₹)': [final_state.get('budget', 0.0), final_state.get('flight_cost', 0.0), final_state.get('accommodation_cost', 0.0), final_state.get('food_cost', 0.0), final_state.get('activities_cost', 0.0), total_spent, final_state.get('remaining_budget', 0.0)]
+        'Category': [
+            'Total Budget (Initial)',
+            'Flight',
+            'Accommodation',
+            'Food & Dining',
+            'Activities & Local Travel',
+            'Total Spent',
+            'Remaining Budget'
+        ],
+        'Details': [
+            'Original Goal',
+            final_state.get('flight_details', ''),
+            final_state.get('accommodation_details', ''),
+            f"{final_state.get('duration_days', 0)} Days of meals",
+            activities_details,
+            '',
+            ''
+        ],
+        'Cost (₹)': [
+            final_state.get('budget', 0.0),
+            final_state.get('flight_cost', 0.0),
+            final_state.get('accommodation_cost', 0.0),
+            final_state.get('food_cost', 0.0),
+            final_state.get('activities_cost', 0.0),
+            total_spent,
+            final_state.get('remaining_budget', 0.0)
+        ]
     }
+
+    # Convert dictionary into a Pandas DataFrame
     df = pd.DataFrame(data)
     return df
 
+
 def style_financial_df(df: pd.DataFrame):
+    # Apply currency formatting for display purposes
     return df.style.format({'Cost (₹)': '₹{:,.2f}'})
 
-def send_trip_plan_email(final_state: Dict[str, Any], recipient: str, sender_email: str, sender_password: str, generate_financial_df: Callable, budget_review_data: Optional[Dict[str, str]] = None) -> bool:
+
+def send_trip_plan_email(
+    final_state: Dict[str, Any],
+    recipient: str,
+    sender_email: str,
+    sender_password: str,
+    generate_financial_df: Callable,
+    budget_review_data: Optional[Dict[str, str]] = None
+) -> bool:
+    # Ensure email credentials are provided
     if not all([sender_email, sender_password]):
         print("ERROR: Email credentials (sender email or sender_password) not found in the function call.")
         return False
+
+    # Build budget summary table for the email
     try:
         budget_df = generate_financial_df(final_state)
     except Exception as e:
         print(f"ERROR building budget DataFrame: {e}")
         budget_df = None
+
+    # Convert budget DataFrame into a readable text format
     budget_summary_text = ""
     if budget_df is not None:
         try:
@@ -56,6 +114,7 @@ def send_trip_plan_email(final_state: Dict[str, Any], recipient: str, sender_ema
     else:
         budget_summary_text = "Budget summary unavailable."
 
+    # Include budget review suggestions if provided
     budget_review_section = ""
     if budget_review_data:
         budget_review_section = f"""
@@ -67,24 +126,39 @@ def send_trip_plan_email(final_state: Dict[str, Any], recipient: str, sender_ema
 ----------------------------------------------------------------------
 """
 
+    # Extract high-level trip details
     city = final_state.get('city', 'Unknown destination')
     remaining_budget_val = final_state.get('remaining_budget', 0.0)
+
+    # Format remaining budget safely
     try:
         remaining_str = f"₹{float(remaining_budget_val):,.2f}"
     except Exception:
         remaining_str = str(remaining_budget_val)
+
     start_date = final_state.get('start_date', 'N/A')
     end_date = final_state.get('end_date', 'N/A')
+
+    # Format flight cost safely
     flight_cost_val = final_state.get('flight_cost', 0.0)
     try:
         flight_cost_str = f"₹{float(flight_cost_val):,.2f}"
     except Exception:
         flight_cost_str = str(flight_cost_val)
+
+    # Prepare flight details for email readability
     raw_flight_details = final_state.get('flight_details', '')
-    flight_details_str = str(raw_flight_details).replace('|', '\n* ') if raw_flight_details is not None else "No flight details available."
+    flight_details_str = (
+        str(raw_flight_details).replace('|', '\n* ')
+        if raw_flight_details is not None
+        else "No flight details available."
+    )
+
+    # Retrieve itinerary content
     itinerary_text = final_state.get('itinerary_draft', '')
     itinerary_text = str(itinerary_text) if itinerary_text is not None else "(no itinerary provided)"
 
+    # Compose the full email body
     email_body = f"""
 Trip Summary: {city}
 ----------------------------------------------------------------------
@@ -109,11 +183,14 @@ Trip Dates: {start_date} to {end_date}
 ======================================================================
 {itinerary_text}
 """
+
+    # Send the email using SMTP with TLS encryption
     try:
         msg = MIMEText(email_body, 'plain', 'utf-8')
         msg['Subject'] = f"Trip Plan: {city} ({start_date} - {end_date})"
         msg['From'] = sender_email
         msg['To'] = recipient
+
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT, timeout=30) as server:
             server.ehlo()
             server.starttls()
@@ -124,4 +201,5 @@ Trip Dates: {start_date} to {end_date}
     except Exception as e:
         print(f"SMTP Error Details: {e}")
         return False
+
 

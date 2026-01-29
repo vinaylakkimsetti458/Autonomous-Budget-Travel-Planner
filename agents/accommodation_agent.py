@@ -5,26 +5,67 @@ from langchain_core.messages import SystemMessage
 from models.planner_state import PlannerState
 from apis.amadeus_api import real_hotel_api
 
+
 def accommodation_agent(state: PlannerState, task_inputs: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    # Use task-specific inputs if provided; otherwise fall back to the global planner state
     ti = task_inputs or {}
+
+    # Resolve city IATA code (task input has priority over state)
     city_iata = ti.get("city_iata") or state.get("city_iata")
+
+    # Resolve trip start and end dates
     start_date = ti.get("start_date") or state.get("start_date")
     end_date = ti.get("end_date") or state.get("end_date")
+
+    # Determine total trip duration in days (default to 1 if missing)
     duration_days = int(ti.get("duration_days") or state.get("duration_days", 1))
+
+    # Fetch remaining budget; if not explicitly passed, compute from state
     remaining_budget = ti.get("remaining_budget")
     if remaining_budget is None:
         remaining_budget = state.get("remaining_budget", state.get("budget", 0.0))
+
+    # Normalize date objects into API-compatible string format
     if isinstance(start_date, (datetime, date)):
         start_date = start_date.strftime("%Y-%m-%d")
     if isinstance(end_date, (datetime, date)):
         end_date = end_date.strftime("%Y-%m-%d")
+
+    # Display a progress spinner in the Streamlit UI while accommodation is being fetched
     with st.spinner(f"🏨 Finding Accommodation in {state.get('city', city_iata)}..."):
         try:
-            accommodation_cost, accommodation_details = real_hotel_api(city_iata, start_date, end_date, duration_days)
+            # Call Amadeus Hotel API (or mocked fallback) to get accommodation cost and details
+            accommodation_cost, accommodation_details = real_hotel_api(
+                city_iata, start_date, end_date, duration_days
+            )
         except Exception as e:
+            # Fail-safe handling to avoid breaking the planner if API fails
             print(f"Accommodation agent exception: {e}")
             accommodation_cost = 0.0
             accommodation_details = "Simulated Accommodation (Exception)"
+
+        # Update remaining budget after deducting accommodation cost
         new_remaining = float(remaining_budget) - float(accommodation_cost)
-        trace_entry = {"node": "ACCOMMODATION_AGENT", "city_iata": city_iata, "nights": max(1, duration_days - 1), "accommodation_cost": float(accommodation_cost)}
-        return {"accommodation_cost": round(float(accommodation_cost), 2), "accommodation_details": accommodation_details, "remaining_budget": round(new_remaining, 2), "messages": [SystemMessage(content=f"Accommodation cost added: ₹{float(accommodation_cost):,.2f}")], "next_action": "FOOD_AGENT", "trace": [trace_entry]}
+
+        # Create a trace entry for debugging and execution transparency
+        trace_entry = {
+            "node": "ACCOMMODATION_AGENT",
+            "city_iata": city_iata,
+            "nights": max(1, duration_days - 1),
+            "accommodation_cost": float(accommodation_cost)
+        }
+
+        # Return structured output for downstream agents (Food Agent is next)
+        return {
+            "accommodation_cost": round(float(accommodation_cost), 2),
+            "accommodation_details": accommodation_details,
+            "remaining_budget": round(new_remaining, 2),
+            "messages": [
+                SystemMessage(
+                    content=f"Accommodation cost added: ₹{float(accommodation_cost):,.2f}"
+                )
+            ],
+            "next_action": "FOOD_AGENT",
+            "trace": [trace_entry]
+        }
+
