@@ -57,7 +57,7 @@ def init_groq_llm(api_key: Optional[str], model: str = "openai/gpt-oss-120b", ma
             tried_exceptions.append(f"Attempt with keys {list(kw.keys())} failed: {repr(e)}")
     return None, "\n".join(tried_exceptions)
 
-GROQ_LLM, init_err = init_groq_llm(GROQ_API_KEY, model="meta-llama/llama-4-maverick-17b-128e-instruct", max_tokens=3000, timeout_sec=30.0)
+GROQ_LLM, init_err = init_groq_llm(GROQ_API_KEY, model="openai/gpt-oss-120b", max_tokens=3000, timeout_sec=30.0)
 
 
 if GROQ_LLM is None:
