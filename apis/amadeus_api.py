@@ -1,15 +1,22 @@
 import os
 import random
 import requests
+from dotenv import load_dotenv
+load_dotenv()
 from typing import Optional, Tuple, List, Dict, Any
-from utils.fallback_names import FALLBACK_HOTEL_NAMES, INDIAN_AIRLINES, INTERNATIONAL_AIRLINES
+from utils.fallback_names import (
+    FALLBACK_HOTEL_NAMES,
+    INDIAN_AIRLINES,
+    INTERNATIONAL_AIRLINES
+)
 from utils.city_iata import INDIA_IATA_CODES
 from utils.helpers import (
     convert_to_inr,
     get_city_center_latlon,
     mock_activities_agent,
+    generate_best_flight,
+    calculate_realistic_price
 )
-
 
 AUTH_URL = "https://test.api.amadeus.com/v1/security/oauth2/token"
 FLIGHT_SEARCH_URL = "https://test.api.amadeus.com/v2/shopping/flight-offers"
@@ -54,13 +61,15 @@ def real_flight_api(city_iata: str, start_date: str, end_date: str) -> Tuple[flo
     ORIGIN_IATA = "HYD"
 
     if not AMADEUS_CLIENT_READY or not AMADEUS_TOKEN:
-        if is_international_city(city_iata):
-            sim_cost = random.uniform(70000, 100000)
-        else:
-            sim_cost = random.uniform(18000, 30000)
+        best = generate_best_flight(ORIGIN_IATA, city_iata)
 
-        fallback_airline = get_fallback_airline(city_iata)
-        return round(sim_cost, 2), fallback_airline, fallback_airline
+        airline = best["airline"]
+        stops = best["stops"]
+
+        cost = calculate_realistic_price(city_iata, airline, stops)
+        details = f"{airline} ({stops} stop(s))"
+
+        return round(cost, 2), details, details
 
     search_headers = {'Authorization': f'Bearer {AMADEUS_TOKEN}'}
     search_params = {
@@ -80,46 +89,56 @@ def real_flight_api(city_iata: str, start_date: str, end_date: str) -> Tuple[flo
             params=search_params,
             timeout=REQUEST_TIMEOUT
         )
+
         response.raise_for_status()
         flight_data = response.json()
 
         if not flight_data.get('data'):
-            raise Exception("No round-trip flight offers returned.")
+            raise Exception("No flights")
 
         cheapest_offer = min(
-               flight_data['data'],
-                key=lambda offer: float(offer['price']['total'])
-            )
-        round_trip_inr = float(cheapest_offer['price']['total'])
+            flight_data['data'],
+            key=lambda offer: float(offer['price']['total'])
+        )
+
+        price = float(cheapest_offer['price']['total'])
         carrier_dict = flight_data.get('dictionaries', {}).get('carriers', {})
 
         outbound_segments = cheapest_offer['itineraries'][0]['segments']
-        out_carrier_code = outbound_segments[0]['carrierCode']
-        out_airline_name = carrier_dict.get(out_carrier_code, out_carrier_code)
+        out_code = outbound_segments[0]['carrierCode']
+        out_airline = carrier_dict.get(out_code, out_code)
+        out_stops = len(outbound_segments) - 1
+
+        outbound_details = f"{out_airline} ({out_stops} stop(s))"
 
         if len(cheapest_offer['itineraries']) > 1:
             return_segments = cheapest_offer['itineraries'][1]['segments']
-            ret_carrier_code = return_segments[0]['carrierCode']
-            ret_airline_name = carrier_dict.get(ret_carrier_code, ret_carrier_code)
+            ret_code = return_segments[0]['carrierCode']
+            ret_airline = carrier_dict.get(ret_code, ret_code)
+            ret_stops = len(return_segments) - 1
         else:
-            return_segments = []
-            ret_airline_name = "Multi-stop/Unknown Return"
+            ret_airline = out_airline
+            ret_stops = out_stops
 
-        outbound_details = f"Flight via {out_airline_name} ({len(outbound_segments)-1} stop(s))"
-        return_details = f"Flight via {ret_airline_name} ({len(return_segments)-1 if return_segments else 0} stop(s))"
+        return_details = f"{ret_airline} ({ret_stops} stop(s))"
 
-        return round(round_trip_inr, 2), outbound_details, return_details
+        return round(price, 2), outbound_details, return_details
+    
 
     except Exception as e:
-        print(f"Flight API Error: {e}")
+        print(f"⚠️ API failed → fallback: {e}")
+    
+        best = generate_best_flight(ORIGIN_IATA, city_iata)
 
-        if is_international_city(city_iata):
-            sim_cost = random.uniform(70000, 100000)
-        else:
-            sim_cost = random.uniform(18000, 30000)
+        airline = best["airline"]
+        stops = best["stops"]
 
-        fallback_airline = get_fallback_airline(city_iata)
-        return round(sim_cost, 2), fallback_airline, fallback_airline
+        # smarter pricing
+        cost = calculate_realistic_price(city_iata, airline, stops)
+
+        details = f"{airline} ({stops} stop(s))"
+
+        return round(cost, 2), details, details
 
     
 def real_hotel_api(city_iata: str, start_date_str: str, end_date_str: str, duration_days: int) -> Tuple[float, str]:
@@ -251,4 +270,3 @@ def real_activities_budget_and_list(city: str, duration_days: int, remaining_bud
     est_cost = round(est_cost, 2)
     details = (f"Based on {len(activities)} Amadeus activities near {city} (avg ≈ ₹{avg_price_inr:,.0f} per activity), allocated ₹{est_cost:,.0f} for activities & local experiences.")
     return est_cost, details, activities
-
