@@ -44,7 +44,7 @@ SENDER_PASSWORD = os.getenv("EMAIL_PASSWORD")
 GROQ_LLM = None
 LLM_READY = False
 
-def init_groq_llm(api_key: Optional[str], model: str = "llama-3.1-8b-instant", max_tokens: int = 3000, timeout_sec: float = 30.0):
+def init_groq_llm(api_key: Optional[str], model: str = "openai/gpt-oss-120b", max_tokens: int = 3000, timeout_sec: float = 30.0):
     """
     Try multiple common timeout arg names to avoid constructor errors across SDK versions.
     Returns (llm_instance_or_None, error_message_or_None)
@@ -66,7 +66,7 @@ def init_groq_llm(api_key: Optional[str], model: str = "llama-3.1-8b-instant", m
             tried_exceptions.append(f"Attempt with keys {list(kw.keys())} failed: {repr(e)}")
     return None, "\n".join(tried_exceptions)
 
-GROQ_LLM, init_err = init_groq_llm(GROQ_API_KEY, model="llama-3.1-8b-instant", max_tokens=3000, timeout_sec=30.0)
+GROQ_LLM, init_err = init_groq_llm(GROQ_API_KEY, model="openai/gpt-oss-120b", max_tokens=3000, timeout_sec=30.0)
 
 
 if GROQ_LLM is None:
