@@ -7,10 +7,19 @@ from typing import Optional, Tuple, List, Dict, Any
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
-from utils.city_iata import CITY_IATA_MAP
+from utils.city_iata import CITY_IATA_MAP,INDIA_IATA_CODES
 from utils.city_bbox import CITY_BOUNDING_BOXES
-from utils.fallback_names import FALLBACK_HOTEL_NAMES
-
+from utils.fallback_names import (
+    INDIAN_AIRLINES,
+    INTERNATIONAL_AIRLINES,
+    REGION_AIRLINES,
+    PREMIUM_AIRLINES,
+    FALLBACK_HOTEL_NAMES,
+    AMERICAS,
+    EUROPE,
+    ASIA_MIDDLE_EAST,
+    AFRICA_OCEANIA
+)
 load_dotenv()
 
 EXCHANGE_RATES = {"USD": 89.45, "EUR": 103.52, "INR": 1.0}
@@ -35,7 +44,7 @@ SENDER_PASSWORD = os.getenv("EMAIL_PASSWORD")
 GROQ_LLM = None
 LLM_READY = False
 
-def init_groq_llm(api_key: Optional[str], model: str = "openai/gpt-oss-120b", max_tokens: int = 3000, timeout_sec: float = 30.0):
+def init_groq_llm(api_key: Optional[str], model: str = "llama-3.1-8b-instant", max_tokens: int = 3000, timeout_sec: float = 30.0):
     """
     Try multiple common timeout arg names to avoid constructor errors across SDK versions.
     Returns (llm_instance_or_None, error_message_or_None)
@@ -57,7 +66,7 @@ def init_groq_llm(api_key: Optional[str], model: str = "openai/gpt-oss-120b", ma
             tried_exceptions.append(f"Attempt with keys {list(kw.keys())} failed: {repr(e)}")
     return None, "\n".join(tried_exceptions)
 
-GROQ_LLM, init_err = init_groq_llm(GROQ_API_KEY, model="openai/gpt-oss-120b", max_tokens=3000, timeout_sec=30.0)
+GROQ_LLM, init_err = init_groq_llm(GROQ_API_KEY, model="llama-3.1-8b-instant", max_tokens=3000, timeout_sec=30.0)
 
 
 if GROQ_LLM is None:
@@ -129,6 +138,148 @@ def calculate_duration(start_date_str: str, end_date_str: str) -> int:
     except Exception:
         return 3
     
+CITY_REGION_MAP = {}
+
+for c in AMERICAS:
+    CITY_REGION_MAP[c] = "AMERICAS"
+for c in EUROPE:
+    CITY_REGION_MAP[c] = "EUROPE"
+for c in ASIA_MIDDLE_EAST:
+    CITY_REGION_MAP[c] = "ASIA_MIDDLE_EAST"
+for c in AFRICA_OCEANIA:
+    CITY_REGION_MAP[c] = "AFRICA_OCEANIA"
+
+def get_region(dest):
+    return CITY_REGION_MAP.get(dest, "OTHER")
+
+BASE_PRICE = {
+    "INDIA": (6000, 12000),
+    "ASIA_MIDDLE_EAST": (25000, 45000),
+    "EUROPE": (60000, 90000),
+    "AMERICAS": (90000, 120000),
+    "AFRICA_OCEANIA": (70000, 100000)
+}
+
+def get_region_for_price(destination):
+    if destination in INDIA_IATA_CODES:
+        return "INDIA"
+    return get_region(destination)
+
+def calculate_realistic_price(destination, airline, stops):
+    region = get_region_for_price(destination)
+
+    low, high = BASE_PRICE.get(region, (30000, 60000))
+    price = random.randint(low, high)
+
+    if stops == 0:
+        price += 8000
+    elif stops == 2:
+        price -= 7000
+
+    if airline in PREMIUM_AIRLINES:
+        price += 5000
+
+    if destination in ["DXB", "AUH", "DOH"]:
+        price -= 3000
+    elif destination in ["SIN", "TYO", "ICN", "HKG"]:
+        price += 4000
+
+    price += random.randint(-5000, 7000)
+
+    return max(price, 2000)
+    
+def select_airline(region):
+    airlines = REGION_AIRLINES.get(region, INTERNATIONAL_AIRLINES)
+
+    weights = []
+
+    for a in airlines:
+        if region == "AMERICAS":
+            if a == "United Airlines":
+                weights.append(0.3)
+            elif a in ["Delta Air Lines", "American Airlines"]:
+                weights.append(0.25)
+            elif a == "Air India":
+                weights.append(0.1)
+            else:
+                weights.append(0.35 / (len(airlines) - 4))
+
+        elif region == "ASIA_MIDDLE_EAST":
+            if a in ["Emirates","Qatar Airways","Etihad Airways"]:
+                weights.append(0.2)
+            else:
+                weights.append(0.8 / (len(airlines) - 3))
+
+        elif region == "AFRICA_OCEANIA":
+            if a in ["Emirates", "Qatar Airways"]:
+                weights.append(0.35)
+            else:
+                weights.append(0.3 / (len(airlines) - 2))
+
+        else:
+            weights.append(1)
+
+    return random.choices(airlines, weights=weights)[0]
+
+def get_stops(region):
+    if region == "ASIA_MIDDLE_EAST":
+        return random.choices([0,1], weights=[0.4,0.6])[0]
+
+    elif region == "EUROPE":
+        return random.choices([1,2], weights=[0.8,0.2])[0]
+
+    elif region == "AMERICAS":
+        return random.choices([1,2], weights=[0.1,0.9])[0]
+
+    elif region == "AFRICA_OCEANIA":
+        return random.choices([1,2], weights=[0.85,0.15])[0]
+
+    return 1
+
+def get_flight_profile(destination):
+    region = get_region(destination)
+    airline = select_airline(region)
+    stops = get_stops(region)
+    return airline, stops
+
+def calculate_score(stops, airline, region):
+    score = stops * 2
+
+    if airline in ["Singapore Airlines","Emirates","Lufthansa"]:
+        score -= 0.5
+
+    if region == "AMERICAS":
+        if stops == 2:
+            score -= 1
+        else:
+            score += 1
+
+    if region == "EUROPE" and stops == 1:
+        score -= 0.5
+
+    if region == "ASIA_MIDDLE_EAST" and stops == 0:
+        score -= 0.5
+
+    return score
+
+def generate_best_flight(origin, destination):
+    candidates = []
+    region = get_region(destination)
+
+    for _ in range(5):
+        airline, stops = get_flight_profile(destination)
+        score = calculate_score(stops, airline, region)
+
+        candidates.append({
+            "route": f"{origin} → {destination}",
+            "airline": airline,
+            "stops": stops,
+            "region" : region,
+            "score": score
+        })
+
+    return min(candidates, key=lambda x: x["score"])
+
 def mock_activities_agent(city: str, duration_days: int, remaining_budget: float) -> Tuple[float, str]:
     estimated_daily_cost = random.uniform(3500,5000)
     initial_estimate = estimated_daily_cost * duration_days
