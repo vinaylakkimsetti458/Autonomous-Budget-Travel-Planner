@@ -2,26 +2,103 @@ INDIAN_AIRLINES = [
     "IndiGo",
     "Air India",
     "Vistara",
-    "Akasa Air",
-    "SpiceJet"
+    "SpiceJet",
+    "Akasa Air"
 ]
 
 INTERNATIONAL_AIRLINES = [
-    "Qatar Airways",
-    "Emirates",
-    "Singapore Airlines",
-    "Lufthansa",
-    "British Airways",
-    "Etihad Airways",
-    "Turkish Airlines",
-    "Cathay Pacific",
-    "KLM Royal Dutch Airlines",
-    "Air France",
-    "ANA",
-    "Japan Airlines",
-    "Korean Air",
-    "United Airlines"
+    "Qatar Airways","Emirates","Singapore Airlines","Lufthansa",
+    "British Airways","Etihad Airways","Turkish Airlines",
+    "Cathay Pacific","KLM Royal Dutch Airlines","Air France",
+    "ANA","Japan Airlines","Korean Air","United Airlines",
+    "Delta Air Lines","American Airlines","Air Canada"
 ]
+
+REGION_AIRLINES = {
+    "ASIA_MIDDLE_EAST": [
+        "Emirates","Qatar Airways","Etihad Airways",
+        "Singapore Airlines","Air India","IndiGo",
+        "Cathay Pacific","ANA","Japan Airlines"
+    ],
+
+    "EUROPE": [
+        "British Airways","Lufthansa","Air France",
+        "KLM Royal Dutch Airlines","Turkish Airlines",
+        "SWISS","Austrian Airlines","Finnair"
+    ],
+
+    "AMERICAS": [
+        "United Airlines","Air India",
+        "Delta Air Lines","American Airlines",
+        "Air Canada","British Airways",
+        "Lufthansa","Air France"
+    ],
+
+    "AFRICA_OCEANIA": [
+        "Emirates","Qatar Airways",
+        "Ethiopian Airlines","Kenya Airways",
+        "Qantas","Air New Zealand"
+    ]
+}
+
+PREMIUM_AIRLINES = [
+    "Emirates", "Qatar Airways", "Singapore Airlines", "Lufthansa"
+]
+
+AMERICAS = {
+    "ATL","BOS","BUE","YYC","CUN","CHI","DFW","DEN","HNL","LIM","LAX","MEX",
+    "MIA","YUL","NYC","MCO","PHL","RIO","SFO","SCL","SAO","SEA","YTO","YVR",
+    "WAS","LAS","PHX","SAN","SJC","SNA","OAK","PDX","SLC","MSP","DTW","CLE",
+    "CMH","IND","BNA","MEM","STL","MCI","OMA","DSM","OKC","TUL","ICT","ABQ",
+    "ELP","BOI","GEG","RNO","PSP","ONT","BUR","GDL","MTY","PVR","CZM","MID",
+    "UIO","GYE","MDE","CTG","PTY","SJO","SAL","GUA","NAS","PUJ","AUA","CUR",
+    "ANC","JNU","FAI","BZN","JAC","FAR","RAP","FSD","YQM","YXE","YQR","YWG",
+    "YQT","CUU","HMO","TGZ","BJX","PBC","AGU","LAP","VVI","SRE","AQP","CUZ",
+    "TRU","IQT","SMR","BGA","PEI","CLO","MVD","ASU","SAT","AUS","HOU","MSY",
+    "SJU","TPA","PIE","FLL","PBI","DAY","TOL","CAK","LEX","SDF","CHS","SAV",
+    "GSP","TYS","CHA","HSV","MOB","PNS","SAF","DRO","FLG","YUM","LPB","CBB",
+    "BAQ","MZL","CUE","SLA","MDZ","USH","PUQ","ANF"
+}
+
+EUROPE = {
+    "AMS","ATH","BCN","BER","BRU","CPH","DUB","EDI","FRA","GVA","HEL","IST",
+    "LIS","LON","MAD","MAN","MIL","MOW","MUC","OSL","PAR","PRG","ROM","LED",
+    "STO","VIE","WAW","ZRH","GOT","MMX","BLL","AAL","TLL","RIX","VNO","KRK",
+    "GDN","WRO","BUD","OTP","CLJ","SOF","BEG","SKG","HER","RHO","NAP","FLR",
+    "BLQ","PSA","TRN","VRN","INN","SZG","GRZ","LJU","ZAG","SPU","DBV","TIA",
+    "SJJ","VLC","ALC","PMI","IBZ","KEF","HAM","NCE","BGO","LUX","BSL","BRN",
+    "TKU","TMP","OUL","BOO","TOS","UME","VBY","ODE","EBJ","GRQ","EIN","RTM",
+    "BES","RNS","LIG","ZAZ","RMU","LEI","XRY","TRS","PEG","AOI","SUF","BRI",
+    "CAG","OLB","PDV","VAR","TSR","OMR","KSC","KRR","AER","SVQ","GRX","AGP",
+    "BIO","SDR","FAO","OPO","CBP","LYS","MRS","TLS","MPL","AVN","CGN","STR",
+    "DRS","LEJ","NUE","LBA","BRS","CWL","BFS","ORK","SNN","BTS","KTW","LCJ",
+    "POZ","BRQ","OSR","SKP"
+}
+
+ASIA_MIDDLE_EAST = {
+    "AUH","AMM","BKK","PEK","BLR","CTU","DEL","DPS","DOH","DXB","SGN","HKG",
+    "HYD","CGK","KUL","KWI","MNL","BOM","OSA","HKT","RUH","SEL","SHA","SIN",
+    "TPE","TYO","PNQ","CCU","AMD","COK","TRV","IXC","PAT","VNS","JAI","UDR",
+    "NAG","MAA","GOI","IDR","JDH","AGR","ATQ","IXU","IXM","TIR","IXL","DED",
+    "IXJ","STV","BDQ","RAJ","BHO","RPR","IXR","PNY","KUU","PEN","LGK","SUB",
+    "BDO","KNO","HAN","DAD","CXR","PNH","REP","ICN","PUS","CJU","KHI","LHE",
+    "ISB","MCT","IKA","JED","DMM","KTM","CMB","DAC","ALA","TAS","SKD","GYD",
+    "BUS","EVN","ULN","LPQ","VTE","MDL","NYU","TAE","KWJ","FUK","SDJ","CTS",
+    "KOJ","OKJ","BKI","KCH","PNK","BPN","UPG","PDG","PKU","LKO","KNU","GAU",
+    "IMF","AJL","SHL","IXS","DIB","JRH","DMU","IXA","VGA","VTZ","RJA","TRZ",
+    "CJB","SXV","TCR","MYQ","HBX","IXG","GBI","IXE","UDU","BTH","JOG","SOC",
+    "SRG","PLM","HDY","CEI","UTH","VVO","KHV","TUU","YNB","AHB","TIF","IKT",
+    "NOZ","ULH"
+}
+AFRICA_OCEANIA = {
+    "ACC","ADL","AKL","CAI","CPT","CMN","DUR","JNB","RAK","MEL","NBO","PER",
+    "SYD","TUN","WLG","LOS","ABV","PHC","LAD","MPM","GBE","WDH","HRE","ADD",
+    "DSS","BNE","OOL","CNS","HBA","LST","CHC","DUD","NAN","PPT","POM","MLE",
+    "PLZ","ELS","PTG","LVI","NLA","EBB","KGL","BJM","HAH","TNR","NOS","TSV",
+    "ROK","DRW","ASP","ZQN","ROT","IVC","APW","HIR","MRU","SEZ","LLW","BLZ",
+    "LUN","BUQ","FRW","WVB","SWP","ARK","JRO","MBA","ZNZ","DAR","CBR","ABX",
+    "WGA","DBO","KGI","BME","NSN","TUO","WRE","TIU"
+}
 
 FALLBACK_HOTEL_NAMES = {
 
@@ -537,6 +614,3 @@ FALLBACK_HOTEL_NAMES = {
 
     "DEFAULT": "The Grand Central Inn"
 }
-
-
-
